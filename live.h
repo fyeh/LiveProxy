@@ -108,9 +108,10 @@ private:
 	HANDLE					hDataThreadReady;
 	HANDLE					hRecvEvent;
 	int						nostream;
+	int						m_frameQueueSize;
 
  public:
-	 CstreamMedia();
+	 CstreamMedia(int frameQueueSize);
 	 ~CstreamMedia();
 		
 	//The rtsp thread

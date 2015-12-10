@@ -22,7 +22,7 @@ class H264VideoSink : public MediaSink {
 
 // static methods
 public:
-	static H264VideoSink * createNew(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId = NULL);
+	static H264VideoSink * createNew(UsageEnvironment& env, MediaSubsession& subsession, int frameQueueSize, char const* streamId = NULL);
 
 protected:
     static void afterGettingFrame(void* clientData, unsigned frameSize, unsigned numTruncatedBytes, timeval presentationTime, unsigned durationInMicroseconds);
@@ -35,7 +35,7 @@ public:
 
 
 protected:
-	H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId);
+	H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId, int frameQueueSize);
 	void afterGettingFrame1(unsigned frameSize, struct timeval presentationTime);
 	void AddData(uint8_t* aData, int aSize);
     Boolean	continuePlaying();

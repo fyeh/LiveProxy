@@ -15,11 +15,11 @@ and implement the rtsp interface to receive video frames see both
 */
 class MyRTSPClient: public RTSPClient {
 public:
-	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL);
+	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize);
 	virtual ~MyRTSPClient();
 
 protected:
-	MyRTSPClient(UsageEnvironment& env, char const* rtspURL, int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum);
+	MyRTSPClient(UsageEnvironment& env, char const* rtspURL, int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize);
 
 public:
 	StreamTrack* get_StreamTrack(){return tk;}

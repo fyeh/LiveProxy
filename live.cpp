@@ -13,9 +13,9 @@ HANDLE hDataThreadReady;
 /**
 opens the RTSPClient stream
 */
-void openURL(UsageEnvironment& env, char const* rtspURL);
+void openURL(UsageEnvironment& env, char const* rtspURL, int frameQueueSize);
 
-void openURL(UsageEnvironment& env, char const* rtspURL);
+void openURL(UsageEnvironment& env, char const* rtspURL, int frameQueueSize);
 // RTSP 'response handlers':
 void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString);
@@ -175,7 +175,7 @@ DWORD WINAPI rtspRecvDataThread( LPVOID lpParam )
 
 	// Begin by creating a "RTSPClient" object.  Note that there is a separate "RTSPClient" object for each stream that we wish
 	// to receive (even if more than stream uses the same "rtsp://" URL).
-	MyRTSPClient* client = MyRTSPClient::createNew(*env, rtspClient->get_Url());
+	MyRTSPClient* client = MyRTSPClient::createNew(*env, rtspClient->get_Url(), rtspClient->m_frameQueueSize);
 
 	if (client == NULL) {
 		TRACE_ERROR("Failed to create a RTSP client for URL %s, Msg %s", rtspClient->get_Url(),  env->getResultMsg());
@@ -210,11 +210,11 @@ separate "RTSPClient" object for each stream that we wish
 to receive (even if more than stream uses the same "rtsp://" URL).
 not that we need that in this filter
 */
-void openURL(UsageEnvironment& env,  char const* rtspURL) {
+void openURL(UsageEnvironment& env,  char const* rtspURL, int frameQueueSize) {
 	// Begin by creating a "RTSPClient" object.  Note that there is a separate "RTSPClient" object for each stream that we wish
 	// to receive (even if more than stream uses the same "rtsp://" URL).
 	TRACE_INFO("open URL %s ",rtspURL);
-	MyRTSPClient* client = MyRTSPClient::createNew(env, rtspURL);
+	MyRTSPClient* client = MyRTSPClient::createNew(env, rtspURL, frameQueueSize);
 	if (client == NULL) {
 		TRACE_ERROR("Failed to create a RTSP client msg: %s for URL %s ",env.getResultMsg(), rtspURL);
 		env << "Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env.getResultMsg() << "\n";
@@ -503,7 +503,7 @@ void onScheduledDelayedTask(void* clientData)
 /**
 Constructor
 */
-CstreamMedia::CstreamMedia()
+CstreamMedia::CstreamMedia(int frameQueueSize)
 {
 	stream		= NULL;
 	ms 			= NULL;
@@ -520,6 +520,7 @@ CstreamMedia::CstreamMedia()
 	hRecvEvent=NULL;
 	hRecvDataThread=NULL;
 	hFrameListLock=NULL;
+	m_frameQueueSize = frameQueueSize;
 }
 
 /**

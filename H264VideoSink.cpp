@@ -11,14 +11,14 @@ static int frame_count;
 /**
 Static construtor to create our implemenation of a video size
 */
-H264VideoSink* H264VideoSink::createNew(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId) {
-  return new H264VideoSink(env, subsession, streamId);
+H264VideoSink* H264VideoSink::createNew(UsageEnvironment& env, MediaSubsession& subsession, int frameQueueSize, char const* streamId) {
+  return new H264VideoSink(env, subsession, streamId, frameQueueSize);
 }
 
 /**
 Singleton constructor
 */
-H264VideoSink::H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId):
+H264VideoSink::H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId, int frameQueueSize):
 MediaSink(env), m_fSubsession(subsession) , m_ready(0)
 {
 	TRACE_INFO("Video sink constructor");
@@ -28,7 +28,7 @@ MediaSink(env), m_fSubsession(subsession) , m_ready(0)
     uint8_t startCode[] = {0x00, 0x00,0x01};
 
 	m_buffer = new unsigned char[m_bufferSize];
-	m_frameQueue=new CMediaQueue(200);
+	m_frameQueue=new CMediaQueue(frameQueueSize);
 	m_decoder=new CVideoDecoder();
 	AddData(startCode, sizeof(startCode));
 	InitializeCriticalSection(&m_criticalSection);

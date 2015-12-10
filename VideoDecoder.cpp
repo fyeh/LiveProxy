@@ -24,34 +24,41 @@ inline FrameInfo* FrameNew(int frame_size = 4096)
 */
 CVideoDecoder::CVideoDecoder(void)
 {
-	TRACE_INFO("Register codecs");
-	m_frame = avcodec_alloc_frame();
-	avcodec_register_all();
-
-	TRACE_INFO("Find codec");
-    m_codec = avcodec_find_decoder(CODEC_ID_H264);
-    if ( m_codec != NULL)
-    {
-		TRACE_INFO("Decoder found");
-    }else{
-		TRACE_ERROR("H264 Codec decoder not found");
-    }
-
-	TRACE_INFO("Allocate code context");
-    m_codecContext = avcodec_alloc_context3(m_codec);
-	m_codecContext->flags = 0;
-       
-	TRACE_INFO("open codec");
-	int ret=avcodec_open2(m_codecContext, m_codec, NULL);
-    if (ret < 0) 
+	try
 	{
-		TRACE_ERROR("Error opening codec ret=%d",ret);
-    }else{
-		TRACE_INFO("AV Codec found and opened");
-    }
+		TRACE_INFO("Register codecs");
+		m_frame = avcodec_alloc_frame();
+		avcodec_register_all();
+
+		TRACE_INFO("Find codec");
+		m_codec = avcodec_find_decoder(CODEC_ID_H264);
+		if ( m_codec != NULL)
+		{
+			TRACE_INFO("Decoder found");
+		}else{
+			TRACE_ERROR("H264 Codec decoder not found");
+		}
+
+		TRACE_INFO("Allocate code context");
+		m_codecContext = avcodec_alloc_context3(m_codec);
+		m_codecContext->flags = 0;
        
-    if ( m_codecContext->codec_id == CODEC_ID_H264 )
-		m_codecContext->flags2 |= CODEC_FLAG2_CHUNKS;
+		TRACE_INFO("open codec");
+		int ret=avcodec_open2(m_codecContext, m_codec, NULL);
+		if (ret < 0) 
+		{
+			TRACE_ERROR("Error opening codec ret=%d",ret);
+		}else{
+			TRACE_INFO("AV Codec found and opened");
+		}
+       
+		if ( m_codecContext->codec_id == CODEC_ID_H264 )
+			m_codecContext->flags2 |= CODEC_FLAG2_CHUNKS;
+	}
+	catch (...)
+	{
+		TRACE_WARN("Ignoring Exception");
+	}
 }
 
 /** VideoDecoder descructor.

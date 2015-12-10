@@ -43,12 +43,12 @@
     <EnableManagedIncrementalBuild>true</EnableManagedIncrementalBuild>
     <IncludePath>$(SolutionDir)Cisco Source Filter\Common\DirectShow;$(SolutionDir)live\BasicUsageEnvironment\include;$(SolutionDir)live\UsageEnvironment\include;$(SolutionDir)live\groupsock\include;$(SolutionDir)live\liveMedia\include;$(SolutionDir)ffmpeg\include\;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)ffmpeg\lib;$(SolutionDir)live\lib;$(LibraryPath)</LibraryPath>
-    <OutDir>$(ProjectDir)bin\</OutDir>
+    <OutDir>$(ProjectDir)bin\Debug</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>$(SolutionDir)Cisco Source Filter\Common\DirectShow;$(SolutionDir)live\BasicUsageEnvironment\include;$(SolutionDir)live\UsageEnvironment\include;$(SolutionDir)live\groupsock\include;$(SolutionDir)live\liveMedia\include;$(SolutionDir)ffmpeg\include\;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)ffmpeg\lib;$(SolutionDir)live\lib;$(LibraryPath)</LibraryPath>
-    <OutDir>$(ProjectDir)bin\</OutDir>
+    <OutDir>$(ProjectDir)bin\Release</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -63,6 +63,7 @@
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
       <AdditionalLibraryDirectories>$(SolutionDir)live\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <CustomBuildStep>
       <Command>copy $(ProjectDir)support\*.dll $(OutputPath)</Command>
@@ -86,6 +87,7 @@
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
       <AdditionalLibraryDirectories>$(SolutionDir)live\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
       <Command>copy $(ProjectDir)support $(OutDir)</Command>

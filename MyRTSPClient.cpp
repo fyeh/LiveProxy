@@ -6,23 +6,24 @@
 /**
 Static method to create an new instance of our version of a RTSPClient
 */
-MyRTSPClient* MyRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL) 
+MyRTSPClient* MyRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize) 
 {
 	int level= g_logLevel;
 
-	return new MyRTSPClient(env, rtspURL, level, "Cisco", 0);
+	return new MyRTSPClient(env, rtspURL, level, "Cisco", 0, frameQueueSize);
 }
 
 /**
 Singleton constructor
 */
 MyRTSPClient::MyRTSPClient(UsageEnvironment& env, char const* rtspURL,
-			     int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum)
+			     int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize)
   : RTSPClient(env,rtspURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum), m_sink(NULL)
 {
 	TRACE_INFO("Created RTSP client");
 	TRACE_INFO(rtspURL);
-	m_sink=H264VideoSink::createNew(env, *scs.subsession, "DMH_STREAM");//rtspClient->url());
+
+		m_sink=H264VideoSink::createNew(env, *scs.subsession, frameQueueSize, "DMH_STREAM");//rtspClient->url());
 }
 
 /**
