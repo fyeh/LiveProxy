@@ -1,4 +1,5 @@
 #pragma once
+#include "util.h"
 
 /**
 The type, size and timestamp of the frame
@@ -40,8 +41,8 @@ class CMediaQueue
 	MediaQueue *head, *tail;
 	MediaQueue *writepos, *readpos;
 	MediaQueue *ptr, *pstatic;
-	HANDLE		hFrameListLock;
-	HANDLE  	hRecvEvent;
+	MyMutex*		hFrameListLock;
+	MyEvent*  	hRecvEvent;
 	int			count;
 	int			size;
 
@@ -58,7 +59,7 @@ public:
 	The capacity of the queue
 	*/
 	int get_Size()
-	{		
+	{
 		return(size);
 	}
 
@@ -66,7 +67,7 @@ public:
 	The number of frames in the queue
 	*/
 	int get_Count()
-	{		
+	{
 		return(count);
 	}
 
@@ -74,7 +75,7 @@ public:
 	Helper to see if queue is empty
 	*/
 	int get_isEmpty()
-	{		
+	{
 		return(count<=0?1:0);
 	}
 
@@ -82,8 +83,9 @@ public:
 	remove all items from the queue
 	*/
 	int empty()
-	{		
-		SetEvent(hRecvEvent);
+	{
+		hRecvEvent -> SetEvent();
+
 		return(count=0);
 	}
 };

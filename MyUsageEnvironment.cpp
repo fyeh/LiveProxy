@@ -21,7 +21,7 @@ CMyUsageEnvironment::~CMyUsageEnvironment(void)
 UsageEnvironment& CMyUsageEnvironment::operator<<(char const* str) {
   if (str == NULL) str = "(NULL)"; // sanity check
   m_logstream << str;
-  write();
+  uenv_log();
   return *this;
 }
 
@@ -45,9 +45,9 @@ UsageEnvironment& CMyUsageEnvironment::operator<<(void* p) {
   return *this;
 }
 
-void  CMyUsageEnvironment::write(){
+void  CMyUsageEnvironment::uenv_log(){
 	int len = get_size();
-    if(m_logstream.str ()[len-1] == '\n')
+  if(m_logstream.str ()[len-1] == '\n')
 	{
 		std::string str(m_logstream.str());
 		TRACE_DEBUG(str.c_str());

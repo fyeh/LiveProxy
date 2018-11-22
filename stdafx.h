@@ -14,21 +14,24 @@
 
 
 #pragma once
-#include <shlwapi.h>
 #include <sstream>
 #include <cctype>       // std::toupper
-#include <atlbase.h>
-#include <atlconv.h>
 #include <fstream>
 #include <stdarg.h>
 #include <cstdlib>
 #include <time.h>
 #include <stdio.h>
-#include <initguid.h>
 #include <regex>
 #include <string.h>
+#ifndef _LP_FOR_LINUX_
+#include <shlwapi.h>
+#include <atlbase.h>
+#include <atlconv.h>
+#include <initguid.h>
+#endif
 
 
+#ifndef _LP_FOR_LINUX_
 
 //Link in our dependent library
 //live555 libraries
@@ -47,3 +50,4 @@
 //#pragma comment (lib,"webservices.lib")
 #pragma comment (lib,"winmm.lib")
 #pragma comment (lib,"Ws2_32.lib")
+#endif
