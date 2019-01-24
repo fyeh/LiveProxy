@@ -118,6 +118,7 @@ private:
 	int						nostream;
 	int						m_frameQueueSize;
   int           m_streamPort;
+  int           m_streamOverTCPPort;
 
  public:
 	 CstreamMedia(int frameQueueSize);
@@ -137,7 +138,7 @@ private:
 	const char * get_Url(){return m_url.c_str();}
   int GetVideoParms( int * piWidth, int * piHeight);
   void SetStreamPort( int streamPort) {m_streamPort = streamPort;}
-
+  void SetTCPStreamPort( int streamPort) {m_streamOverTCPPort = streamPort;}
 
   const StreamTrack *  GetTrack() {printf( "cstreammed get track, num %d, ptr %p\n", i_stream, stream[0]);return stream[0];}
 

@@ -25,11 +25,13 @@ opens the RTSPClient stream
 //void openURL(UsageEnvironment& env, char const* rtspURL, int frameQueueSize);
 
 // RTSP 'response handlers':
+void continueAfterOPTIONS(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString);
 void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultString);
 
 void onScheduledDelayedTask(void* clientData);
+//void checkForPacketArrival(RTSPClient* rtspClient);
 
 // Other event handler functions:
 void subsessionAfterPlaying(void* clientData); // called when a stream's subsession (e.g., audio or video substream) ends
@@ -186,7 +188,8 @@ void *  rtspRecvDataThread( void * lpParam )
 
 	// Begin by creating a "RTSPClient" object.  Note that there is a separate "RTSPClient" object for each stream that we wish
 	// to receive (even if more than stream uses the same "rtsp://" URL).
-	MyRTSPClient* rtspClient = MyRTSPClient::createNew(*env, mediaClient->get_Url(), mediaClient->m_frameQueueSize, mediaClient->m_streamPort);
+	MyRTSPClient* rtspClient = MyRTSPClient::createNew(*env, mediaClient->get_Url(),
+	   mediaClient->m_frameQueueSize, mediaClient->m_streamPort, mediaClient->m_streamOverTCPPort);
 
 	if (rtspClient == NULL) {
 		TRACE_ERROR("Failed to create a RTSP client for URL %s, Msg %s", mediaClient->get_Url(),  env->getResultMsg());
@@ -207,14 +210,15 @@ void *  rtspRecvDataThread( void * lpParam )
 	// Next, send a RTSP "DESCRIBE" command, to get a SDP description for the stream.
 	// Note that this command - like all RTSP commands - is sent asynchronously; we do not block, waiting for a response.
 	// Instead, the following function call returns immediately, and we handle the RTSP response later, from within the event loop:
-	TRACE_INFO("Sending describe command");
-	rtspClient->sendDescribeCommand(continueAfterDESCRIBE);
+//	TRACE_INFO("Sending describe command");
+//	rtspClient->sendDescribeCommand(continueAfterDESCRIBE);
+	TRACE_INFO("Sending options command");
+	rtspClient->sendOptionsCommand(continueAfterOPTIONS);
 
 	// All subsequent activity takes place within the event loop:
 	TRACE_INFO("Starting the event loop");
 	env->taskScheduler().doEventLoop(); // does not return
 
-	//return 0; // We never actually get to this line; this is only to prevent a possible compiler warning
 	return NULL; // We never actually get to this line; this is only to prevent a possible compiler warning
 
 }
@@ -250,6 +254,16 @@ void openURL(UsageEnvironment& env,  char const* rtspURL, int frameQueueSize) {
 /*------------------------------------------------------------*/
 // Implementation of the RTSP 'response handlers':
 /*------------------------------------------------------------*/
+/**
+Response to the sendDescribeCommand
+*/
+void continueAfterOPTIONS(RTSPClient* rtspClient, int resultCode, char* resultString) {
+	TRACE_INFO("Code=%d Result (SDP Desc)=%s",resultCode,resultString);
+
+	TRACE_INFO("Sending describe command");
+	rtspClient->sendDescribeCommand(continueAfterDESCRIBE);
+
+}
 /**
 Response to the sendDescribeCommand
 */
@@ -326,7 +340,7 @@ void setupNextSubsession(RTSPClient* rtspClient)
 	scs.duration = scs.session->playEndTime() - scs.session->playStartTime();
 
 	TRACE_INFO("Sending Play Command");
-	rtspClient->sendPlayCommand(*scs.session, continueAfterPLAY);
+	rtspClient->sendPlayCommand(*scs.session, continueAfterPLAY, 0.00f );//  "now");
 }
 
 /**
@@ -364,7 +378,7 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 		if( !strcmp( sub->mediumName(), "video" ) )
 		{
 			StreamTrack *tk = client->get_StreamTrack( );
-			TRACE_INFO("Found video session, updating tk %p", tk);
+			TRACE_INFO("Found video session, port %d", sub -> clientPortNum());
 
 			tk->sub         = sub;
 			tk->waiting   = 0;
@@ -410,21 +424,21 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 
 					unsigned numSPropRecords = 0;
 					SPropRecord* pRecs = parseSPropParameterSets (sub->fmtp_spropparametersets(), numSPropRecords);
-					TRACE_DEBUG("num SProp %d", numSPropRecords);
+					TRACE_INFO("num SProp %d", numSPropRecords);
 					if( numSPropRecords > 0)
 					{
 						// count total length for allocate
 						// include space for NAL header
 						i_extra = 0;
-						for( int i = 0; i < numSPropRecords; i ++)
+						for( unsigned i = 0; i < numSPropRecords; i ++)
 						{
 							i_extra += pRecs[i].sPropLength + 3;
 						}
-						TRACE_DEBUG("total SProp + NAL len %d", i_extra);
+						TRACE_INFO("total SProp + NAL len %d", i_extra);
 						tk->mediainfo.extra_size = i_extra;
 						tk->mediainfo.extra  = new char[i_extra];
 						i_extra = 0;
-						for( int i = 0; i < numSPropRecords; i ++)
+						for( unsigned i = 0; i < numSPropRecords; i ++)
 						{
 							tk->mediainfo.extra[i_extra++] = 0x00;
 							tk->mediainfo.extra[i_extra++] = 0x00;
@@ -504,10 +518,67 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
 	//hDataThreadReady -> SetEvent();
 	TRACE_INFO( "Started playing session");
 
-	//setup our keep alive using a delayed task
-	TRACE_INFO( "Schedule keep alive task");
-	env.taskScheduler().scheduleDelayedTask(keepAliveTimer, onScheduledDelayedTask, rtspClient);
+	//checkForPacketArrival(rtspClient);
+
+  if( ((MyRTSPClient*)rtspClient)->get_TCPstreamPort() == 0)
+	{
+		//setup our keep alive using a delayed task
+		TRACE_INFO( "Schedule keep alive task");
+		env.taskScheduler().scheduleDelayedTask(keepAliveTimer, onScheduledDelayedTask, rtspClient);
+	}
+	else
+	{
+		TRACE_INFO( "no need for keep alive task as we're using http for streaming");
+	}
 }
+
+
+#if 0
+void checkForPacketArrival(RTSPClient* rtspClient) {
+  // Check each subsession, to see whether it has received data packets:
+  unsigned numSubsessionsChecked = 0;
+  unsigned numSubsessionsWithReceivedData = 0;
+  unsigned numSubsessionsThatHaveBeenSynced = 0;
+
+	UsageEnvironment& env = rtspClient->envir(); // alias
+	StreamClientState& scs = ((MyRTSPClient*)rtspClient)->scs; // alias
+	TRACE_INFO( "checking for packets to have arrived\n" );
+
+
+  MediaSubsessionIterator iter(*scs.session);
+  MediaSubsession* subsession;
+  while ((subsession = iter.next()) != NULL) {
+    RTPSource* src = subsession->rtpSource();
+    if (src == NULL) continue;
+    ++numSubsessionsChecked;
+
+    if (src->receptionStatsDB().numActiveSourcesSinceLastReset() > 0) {
+      // At least one data packet has arrived
+      ++numSubsessionsWithReceivedData;
+    }
+    if (src->hasBeenSynchronizedUsingRTCP()) {
+      ++numSubsessionsThatHaveBeenSynced;
+    }
+  }
+
+  Boolean notifyTheUser;
+    notifyTheUser = numSubsessionsWithReceivedData > 0; // easy case
+  if (notifyTheUser) {
+    struct timeval timeNow;
+    gettimeofday(&timeNow, NULL);
+	char timestampStr[100];
+	sprintf(timestampStr, "%ld%03ld", timeNow.tv_sec, (long)(timeNow.tv_usec/1000));
+
+	TRACE_INFO( "data packets have begun arriving\n" );
+    return;
+  }
+
+  // No luck, so reschedule this check again, after a delay:
+  int uSecsToDelay = 100000; // 100 ms
+  env.taskScheduler().scheduleDelayedTask(uSecsToDelay,
+			       (TaskFunc*)checkForPacketArrival, rtspClient);
+}
+#endif
 
 /*------------------------------------------------------------*/
 // Implementation of the other event handlers:
@@ -658,6 +729,7 @@ CstreamMedia::CstreamMedia(int frameQueueSize)
 	hRecvDataThread=NULL;
 	hFrameListLock=NULL;
 	m_frameQueueSize = frameQueueSize;
+	m_streamOverTCPPort = 0;
 }
 
 /**

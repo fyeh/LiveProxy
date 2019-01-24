@@ -16,7 +16,7 @@
 
 extern "C"
 {
-	int g_logLevel=LOGLEVEL_INFO; //-1;
+	int g_logLevel=LOGLEVEL_ERROR; //-1;
 	logHandler* loggingCallback=NULL;
 	/**
 	Native interface to managed logger

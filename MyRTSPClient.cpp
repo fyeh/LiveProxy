@@ -6,11 +6,12 @@
 /**
 Static method to create an new instance of our version of a RTSPClient
 */
-MyRTSPClient* MyRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort)
+MyRTSPClient* MyRTSPClient::createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort, portNumBits tunnelOverHTTPPortNum)
 {
 	int level= g_logLevel;
 
-	return new MyRTSPClient(env, rtspURL, level, "LiveProxy", 0, frameQueueSize, streamPort);
+	//return new MyRTSPClient(env, rtspURL, level, "LiveProxy", 0, frameQueueSize, streamPort);
+	return new MyRTSPClient(env, rtspURL, level, "LiveProxy", tunnelOverHTTPPortNum, frameQueueSize, streamPort);
 }
 
 /**
@@ -20,9 +21,10 @@ MyRTSPClient::MyRTSPClient(UsageEnvironment& env, char const* rtspURL,
 			     int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize, int streamPort)
   : RTSPClient(env,rtspURL, verbosityLevel, applicationName, tunnelOverHTTPPortNum, -1), m_sink(NULL)
 {
-	TRACE_INFO("Created MyRTSPClient");
+	TRACE_INFO("Created MyRTSPClient, tunnel over TCP %d", tunnelOverHTTPPortNum);
 	TRACE_INFO(rtspURL);
 
+  m_tunnelOverHTTPPortNum = tunnelOverHTTPPortNum;
 	m_sink=H264VideoSink::createNew(env, *scs.subsession, frameQueueSize, "DMH_STREAM");//rtspClient->url());
 	m_streamPort = streamPort;
 	tk = NULL;

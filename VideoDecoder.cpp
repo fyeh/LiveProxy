@@ -29,6 +29,8 @@ CVideoDecoder::CVideoDecoder(void)
 		TRACE_INFO("Register codecs");
 		avcodec_register_all();
 
+    av_log_set_level(AV_LOG_ERROR);
+
 		//m_frame = avcodec_alloc_frame();
 		m_frame = av_frame_alloc();
 
@@ -147,12 +149,12 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 			}
 			else
 			{
-				TRACE_DEBUG( "got error ret %d from send packet\n", iRet);
+				TRACE_INFO( "got error ret %d from send packet\n", iRet);
 				return NULL;
 			}
 			if( iRet != 0 )
 			{
-				TRACE_DEBUG( "got error ret %d from receive frame\n", iRet);
+				TRACE_INFO( "got error ret %d from receive frame\n", iRet);
 				return NULL;
 			}
 			#endif
@@ -174,7 +176,8 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 				m_codecContext->width,
 				m_codecContext->height,
 				//PIX_FMT_BGR24,
-				AV_PIX_FMT_BGR24,
+				//AV_PIX_FMT_BGR24,
+				AV_PIX_FMT_RGB24,
 				SWS_BICUBIC,
 				NULL,
 				NULL,

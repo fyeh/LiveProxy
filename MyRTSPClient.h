@@ -16,7 +16,7 @@ and implement the rtsp interface to receive video frames see both
 
 class MyRTSPClient: public RTSPClient {
 public:
-	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort);
+	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort, portNumBits tunnelOverHTTPPortNum);
 	virtual ~MyRTSPClient();
 
 protected:
@@ -31,8 +31,11 @@ public:
 	H264VideoSink * get_sink(){return m_sink;}
 	int  get_streamPort(){return m_streamPort;}
 
+	portNumBits  get_TCPstreamPort(){return m_tunnelOverHTTPPortNum;}
+
 public:
 	StreamClientState scs;
 	H264VideoSink * m_sink;
 	StreamTrack * tk;
+	portNumBits m_tunnelOverHTTPPortNum;
 };
