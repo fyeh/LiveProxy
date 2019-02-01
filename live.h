@@ -140,7 +140,7 @@ private:
   void SetStreamPort( int streamPort) {m_streamPort = streamPort;}
   void SetTCPStreamPort( int streamPort) {m_streamOverTCPPort = streamPort;}
 
-  const StreamTrack *  GetTrack() {printf( "cstreammed get track, num %d, ptr %p\n", i_stream, stream[0]);return stream[0];}
+  const StreamTrack *  GetTrack() {return stream[0];}
 
 private:
 	//our data thread

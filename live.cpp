@@ -1295,7 +1295,7 @@ bool CstreamMedia::GetFramePtr(FrameInfo** ppframe)
 	FrameInfo* frame = NULL;
 	if(rtsp==NULL)
 	{
-		TRACE_ERROR( "No RTSP session, sleep for long time");
+		TRACE_WARN( "No RTSP session, sleep for long time");
 //		sleep( 10000);
 		return false;
 	}
@@ -1323,7 +1323,7 @@ bool CstreamMedia::GetFramePtr(FrameInfo** ppframe)
 				return (true);
 			}
 
-			TRACE_ERROR( "no frames in queue");
+			TRACE_WARN( "no frames in queue");
 			return false;
 		}
 		else

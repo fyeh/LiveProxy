@@ -118,7 +118,7 @@ FrameInfo* CMediaQueue::get()
 		readpos = readpos->next;
 		count--;
 	}else{
-		TRACE_ERROR("No frames in queue after wait");
+		TRACE_WARN("No frames in queue after wait");
 	}
 	hFrameListLock -> ReleaseMutex();
 
