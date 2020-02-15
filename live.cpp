@@ -319,11 +319,17 @@ void setupNextSubsession(RTSPClient* rtspClient)
 
 	if (scs.subsession != NULL)
 	{
-		if( streamPort != 0)
+		// If scs.subsession->clientPortNum() is 0 then it is a unicast stream. Use the
+		// port number that we specified in the rtspClient constructor.
+		// if it is not zero, it is a multicast stream, use the one that was found
+		// in the SDP returned in the response to the DESCRIBE. This will already
+		// be in the session so don't need to update anything.
+
+		if( streamPort != 0 && scs.subsession->clientPortNum() == 0)
 		{
 			TRACE_INFO("set stream port to %d", streamPort);
-	  	scs.subsession->setClientPortNum(streamPort);
-  	}
+	  		scs.subsession->setClientPortNum(streamPort);
+  		}
 		if (!scs.subsession->initiate())
 		{
 			TRACE_ERROR( "Failed to initiate the subsession: &s",env.getResultMsg());
