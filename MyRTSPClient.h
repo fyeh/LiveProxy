@@ -13,22 +13,29 @@ This class is used to manage the filter video sink /sa H264VideoSink
 and implement the rtsp interface to receive video frames see both
 /sa CStreammedia and /sa CPushPinCisco
 */
+
 class MyRTSPClient: public RTSPClient {
 public:
-	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize);
+	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort, portNumBits tunnelOverHTTPPortNum);
 	virtual ~MyRTSPClient();
 
 protected:
-	MyRTSPClient(UsageEnvironment& env, char const* rtspURL, int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize);
+	MyRTSPClient(UsageEnvironment& env, char const* rtspURL, int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize, int streamPort);
+
+  int  m_streamPort;
 
 public:
 	StreamTrack* get_StreamTrack(){return tk;}
 	void set_StreamTrack(StreamTrack* tk){this->tk=tk;}
 
 	H264VideoSink * get_sink(){return m_sink;}
-	
+	int  get_streamPort(){return m_streamPort;}
+
+	portNumBits  get_TCPstreamPort(){return m_tunnelOverHTTPPortNum;}
+
 public:
 	StreamClientState scs;
 	H264VideoSink * m_sink;
 	StreamTrack * tk;
+	portNumBits m_tunnelOverHTTPPortNum;
 };

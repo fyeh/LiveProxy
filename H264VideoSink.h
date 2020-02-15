@@ -25,32 +25,35 @@ public:
 	static H264VideoSink * createNew(UsageEnvironment& env, MediaSubsession& subsession, int frameQueueSize, char const* streamId = NULL);
 
 protected:
-    static void afterGettingFrame(void* clientData, unsigned frameSize, unsigned numTruncatedBytes, timeval presentationTime, unsigned durationInMicroseconds);
+  static void afterGettingFrame(void* clientData, unsigned frameSize, unsigned numTruncatedBytes, timeval presentationTime, unsigned durationInMicroseconds);
 
 public:
 	//StreamTrack* get_StreamTrack(){return m_tk;}
 	//void set_StreamTrack(StreamTrack* tk){m_tk=tk;}
 	CMediaQueue* get_FrameQueue(){return m_ready==1? m_frameQueue:NULL;}
 	virtual ~H264VideoSink();
+	void setDecoderInitData( unsigned char * data, int datalen);
+	int getDecoderImageParms( int * piWidth, int * piHeight);
 
 
 protected:
 	H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId, int frameQueueSize);
 	void afterGettingFrame1(unsigned frameSize, struct timeval presentationTime);
 	void AddData(uint8_t* aData, int aSize);
-    Boolean	continuePlaying();
+  Boolean	continuePlaying();
 
-       
+
 //Members
 protected:
 	CVideoDecoder *		m_decoder;
 	unsigned char *		m_buffer;
 	unsigned int		m_bufferSize;
 	MediaSubsession&	m_fSubsession;
+	#ifndef _LP_FOR_LINUX_
 	CRITICAL_SECTION	m_criticalSection;
+	#endif
 	char *				m_fStreamId;
 	CMediaQueue*		m_frameQueue;
 	int					m_fPos;
 	int					m_ready;
 };
-

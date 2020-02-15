@@ -3,14 +3,20 @@
 #include "BasicUsageEnvironment.hh"
 #include "GroupsockHelper.hh"
 #include "liveMedia.hh"
+//#include "MyRTSPClient.h"
 #include "MediaQueue.h"
- 
+
+#ifdef _LP_FOR_LINUX_
+
+#else
 
 #ifdef MY_DLL
     #define MY_DLL_EXPORTS  __declspec(dllexport)
 #else
     #define MY_DLL_EXPORTS  __declspec(dllimport)
 #endif //MY_DLL
+
+#endif
 
 //some type shortcuts
 typedef unsigned char 	uint8_t;
@@ -37,10 +43,10 @@ enum CodecType {
 
 //The current state of the RTSP stream
 enum RTSPClientState {
-    RTSP_STATE_IDLE,    /**< not initialized */
+  RTSP_STATE_IDLE,    /**< not initialized */
 	RTSP_STATE_OPENED,
-    RTSP_STATE_PLAYING, /**< initialized and receiving data */
-    RTSP_STATE_PAUSED,  /**< initialized, but not receiving data */
+  RTSP_STATE_PLAYING, /**< initialized and receiving data */
+  RTSP_STATE_PAUSED,  /**< initialized, but not receiving data */
 	RTSP_STATE_LOADING,
 	RTSP_STATE_ERROR
 };
@@ -66,67 +72,78 @@ typedef struct __MediaInfo
 	int				duration;
 	int				b_packetized;
 	char*			extra;
-	int				extra_size;	
+	int				extra_size;
 }MediaInfo;
 
 
 class CstreamMedia;
 typedef struct __StreamTrack
 {
-    CstreamMedia   *	pstreammedia;
+//  CstreamMedia   *	pstreammedia;
 	int 				waiting;
 	MediaInfo   		mediainfo;
 	MediaSubsession*	sub;
 	char*				p_buffer;
-	unsigned int		i_buffer;		
-
-}StreamTrack;
+	unsigned int		i_buffer;
+} StreamTrack;
 
 
 //our worker thread to receive frames on
-DWORD WINAPI rtspRecvDataThread( LPVOID lpParam );
+//DWORD WINAPI rtspRecvDataThread( LPVOID lpParam );
+void *  rtspRecvDataThread( void * lpParam );
 
 /**
 */
+class MyRTSPClient;
+
 class MY_DLL_EXPORTS CstreamMedia
 {
 
 private:
 	bool				m_recvThreadFlag;
-    MediaSession		*ms;
-    TaskScheduler		*scheduler;
-    UsageEnvironment	*env ;
-    RTSPClient			*rtsp;	
+  MediaSession		*ms;
+  TaskScheduler		*scheduler;
+  UsageEnvironment	*env ;
+  MyRTSPClient			*rtsp;
 	int					i_stream;
-    StreamTrack			**stream;
+  StreamTrack			**stream;
 	int					b_tcp_stream;
 	std::string			m_url;
 	enum RTSPClientState	m_state;
-	char					event;	
-	HANDLE					hFrameListLock;
-	HANDLE					hRecvDataThread;
-	HANDLE					hDataThreadReady;
-	HANDLE					hRecvEvent;
+	char					event;
+	MyMutex* 				hFrameListLock;
+	MyThread*				hRecvDataThread;
+	//MyEvent*				hDataThreadReady;
+	MyEvent*  			hRecvEvent;
 	int						nostream;
 	int						m_frameQueueSize;
+  int           m_streamPort;
+  int           m_streamOverTCPPort;
 
  public:
 	 CstreamMedia(int frameQueueSize);
 	 ~CstreamMedia();
-		
+
 	//The rtsp thread
-	int rtspClientOpenStream(const char* filename);
+//	int rtspClientOpenStream(const char* filename);
 	int rtspClientPlayStream(const char* url);
-	int rtspClinetGetMediaInfo(enum CodecType codectype, MediaInfo& mediainfo);
+//	int rtspClientGetMediaInfo(enum CodecType codectype, MediaInfo& mediainfo);
 	int rtspClientCloseStream(void);
-	
+
 	//Queue management
 	bool GetFrame(BYTE * pData, int bufferSize);
+  bool GetFramePtr(FrameInfo** ppframe);
 	void DeleteFrame(FrameInfo* frame);
 	int GetQueueSize();
-	const char * get_Url(){return m_url.c_str();} 
+	const char * get_Url(){return m_url.c_str();}
+  int GetVideoParms( int * piWidth, int * piHeight);
+  void SetStreamPort( int streamPort) {m_streamPort = streamPort;}
+  void SetTCPStreamPort( int streamPort) {m_streamOverTCPPort = streamPort;}
+
+  const StreamTrack *  GetTrack() {return stream[0];}
 
 private:
-	 //our data thread
-	friend DWORD WINAPI rtspRecvDataThread( LPVOID lpParam );
+	//our data thread
+	//friend DWORD WINAPI rtspRecvDataThread( LPVOID lpParam );
+  friend void *  rtspRecvDataThread( void * lpParam );
 };

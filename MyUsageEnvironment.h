@@ -1,6 +1,6 @@
 #pragma once
 #include "stdafx.h"
-#include "basicusageenvironment.hh"
+#include "BasicUsageEnvironment.hh"
 #include <sstream>
 
 /**
@@ -27,9 +27,8 @@ public:
 	virtual UsageEnvironment& operator<<(void* p);
 
 private:
-	void write();
+	void uenv_log();
 
 private:
 	std::stringstream  m_logstream;
 };
-

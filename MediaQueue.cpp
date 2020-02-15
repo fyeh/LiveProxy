@@ -15,7 +15,7 @@ CMediaQueue::CMediaQueue(int queueSize)
 	size=queueSize;
 	head = tail = NULL;
 	ptr = pstatic = (MediaQueue *)malloc(sizeof(MediaQueue)*queueSize);
-	ZeroMemory(pstatic, sizeof(MediaQueue)*queueSize);
+  ZeroMemory(pstatic, sizeof(MediaQueue)*queueSize);
 	head = ptr;
 	readpos = writepos = head;
 	for (int i = 1; i < queueSize; i++)
@@ -27,8 +27,11 @@ CMediaQueue::CMediaQueue(int queueSize)
 	tail = ptr;
 	tail->next =  head;
 	ptr = head;
-	hFrameListLock = CreateMutex(NULL,FALSE,NULL);
-	hRecvEvent     = CreateEvent(NULL, TRUE, FALSE, NULL);
+	//hFrameListLock = CreateMutex(NULL,FALSE,NULL);
+	//hRecvEvent     = CreateEvent(NULL, TRUE, FALSE, NULL);
+	hFrameListLock = new MyMutex();
+	hRecvEvent     = new MyEvent();
+
 }
 
 /**
@@ -36,13 +39,13 @@ Cleanup the queuw
 */
 CMediaQueue::~CMediaQueue()
 {
-	CloseHandle(hRecvEvent);
-	CloseHandle(hFrameListLock);
-		
-	//empty the queue	
+	delete hRecvEvent;
+	delete hFrameListLock;
+
+	//empty the queue
 	while (count >= 0)
 	{
-		//remove a frame so we can add one			
+		//remove a frame so we can add one
 		count--;
 		if (readpos!=NULL && readpos->frame != NULL)
 		{
@@ -60,14 +63,17 @@ CMediaQueue::~CMediaQueue()
 Add a new video frame to the queue
 */
 void CMediaQueue::put(FrameInfo* frame)
-{	  
+{
 	if(ptr == NULL)
-		return; 
+		return;
 
-	WaitForSingleObject(hFrameListLock,INFINITE);
+	hFrameListLock -> LockMutex();
+	TRACE_DEBUG("new frame, have %d", count);
+
 	if (count >= size)
 	{
-		//remove a frame so we can add one			
+		TRACE_DEBUG("drop frame to make room");
+		//remove a frame so we can add one
 		count = size-1;
 		if (readpos->frame)
 		{
@@ -84,9 +90,9 @@ void CMediaQueue::put(FrameInfo* frame)
 
 	if (count <=1)
 	{
-		SetEvent(hRecvEvent);
+		hRecvEvent -> SetEvent();
 	}
-	ReleaseMutex(hFrameListLock); 		
+	hFrameListLock -> ReleaseMutex();
 }
 
 /**
@@ -95,27 +101,27 @@ Remove a video frame from the queue
 FrameInfo* CMediaQueue::get()
 {
 	FrameInfo* frame = NULL;
-		
+
 	if (count < 1)
 	{
-		TRACE_WARN("No frames in queue, waiting");
-		WaitForSingleObject(hRecvEvent, 500);
+		TRACE_DEBUG("No frames in queue, waiting");
+		hRecvEvent -> WaitEvent(500);
 	}
 
-	ResetEvent(hRecvEvent);
-		
-	WaitForSingleObject(hFrameListLock,INFINITE);
+	hRecvEvent -> ResetEvent();
+
+	hFrameListLock -> LockMutex();
 	if(count > 0)
-	{			 
+	{
 		frame = readpos->frame;
 		readpos->frame =  NULL;
-		readpos = readpos->next;  	
-		count--;			
+		readpos = readpos->next;
+		count--;
 	}else{
-		TRACE_ERROR("No frames in queue");
+		TRACE_WARN("No frames in queue after wait");
 	}
+	hFrameListLock -> ReleaseMutex();
 
-	ReleaseMutex(hFrameListLock); 
 	return(frame);
 }
 
@@ -124,16 +130,16 @@ Empty the queue
 */
 void CMediaQueue::reset()
 {
-	WaitForSingleObject(hFrameListLock,INFINITE);
+	hFrameListLock -> LockMutex();
 	ptr = readpos;
 	while (ptr->frame)
 	{
 		free(ptr->frame);
 		ptr->frame = NULL;
 		ptr = ptr->next;
-	}		
+	}
 	writepos = readpos;
 	count  = 0;
-	ReleaseMutex(hFrameListLock); 
+	hFrameListLock -> ReleaseMutex();
 
 }

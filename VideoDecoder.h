@@ -21,6 +21,8 @@ public:
 	CVideoDecoder(void);
 	~CVideoDecoder();
 	FrameInfo* DecodeFrame(unsigned char * pBuffer, int size);
+	int getDecoderImageParms( int * piWidth, int * piHeight);
+
 
 private:
     AVCodec *m_codec;
@@ -28,4 +30,3 @@ private:
     AVFrame *m_frame;
 
 };
-

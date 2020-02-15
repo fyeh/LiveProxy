@@ -1,5 +1,5 @@
 // Implementation of "StreamClientState":
-#pragma once
+//#pragma once
 #include "stdafx.h"
 #include "StreamClientState.h"
 #include "live.h"

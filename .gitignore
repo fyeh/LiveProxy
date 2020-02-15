@@ -1,0 +1,8 @@
+.env
+
+Bin/
+Obj/
+Lib/
+
+ffmpeg*/
+live*/
