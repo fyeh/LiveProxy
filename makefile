@@ -6,8 +6,8 @@ MODDIR=.
 # relative path to root from here
 ROOTREL=.
 
-FFMPEGINC?=$(ROOTREL)/../ffmpeg
-FFMPEGLIB?=$(ROOTREL)/../ffmpeg/bin -lavformat -lavcodec -lswscale -lavutil
+FFMPEGINC?=$(ROOTREL)/../FFMPEG
+FFMPEGLIB?=$(ROOTREL)/../FFMPEG/bin -lavformat -lavcodec -lswscale -lavutil
 
 MODINC= -I $(ROOTREL)/live/liveMedia/include -I $(ROOTREL)/live/groupsock/include -I $(ROOTREL)/live/UsageEnvironment/include -I $(ROOTREL)/live/BasicUsageEnvironment/include -I $(FFMPEGINC)
 MODLIBS=-L$(FFMPEGLIB) ./live/liveMedia/libliveMedia.a ./live/groupsock/libgroupsock.a ./live/BasicUsageEnvironment/libBasicUsageEnvironment.a ./live/UsageEnvironment/libUsageEnvironment.a

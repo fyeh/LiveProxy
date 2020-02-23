@@ -18,7 +18,7 @@ extern "C"
 class CVideoDecoder
 {
 public:
-	CVideoDecoder(void);
+	CVideoDecoder(int engineId);
 	~CVideoDecoder();
 	FrameInfo* DecodeFrame(unsigned char * pBuffer, int size);
 	int getDecoderImageParms( int * piWidth, int * piHeight);
@@ -28,5 +28,6 @@ private:
     AVCodec *m_codec;
     AVCodecContext *m_codecContext;
     AVFrame *m_frame;
+    int m_EngineID;
 
 };

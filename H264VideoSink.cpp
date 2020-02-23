@@ -13,31 +13,33 @@
 /**
 Static construtor to create our implemenation of a video sink
 */
-H264VideoSink* H264VideoSink::createNew(UsageEnvironment& env, MediaSubsession& subsession, int frameQueueSize, char const* streamId) {
-  return new H264VideoSink(env, subsession, streamId, frameQueueSize);
+H264VideoSink* H264VideoSink::createNew(UsageEnvironment& env, MediaSubsession& subsession, int frameQueueSize, char const* streamId, int engineId) {
+  return new H264VideoSink(env, subsession, streamId, frameQueueSize, engineId);
 }
 
 /**
 Singleton constructor
 */
-H264VideoSink::H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId, int frameQueueSize):
+H264VideoSink::H264VideoSink(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId, int frameQueueSize, int engineId):
 MediaSink(env), m_fSubsession(subsession) , m_ready(0)
 {
-	TRACE_INFO("Video sink constructor");
+	TRACE_INFO(engineId, "Constructor");
 	m_fStreamId = strDup(streamId);
+	m_EngineID = engineId;
 	m_bufferSize=253440;//2*DUMMY_SINK_RECEIVE_BUFFER_SIZE;
   m_fPos = 0;
   uint8_t startCode[] = {0x00, 0x00,0x01};
 
 	m_buffer = new unsigned char[m_bufferSize];
-	m_frameQueue=new CMediaQueue(frameQueueSize);
-	m_decoder=new CVideoDecoder();
+	m_frameQueue=new CMediaQueue(frameQueueSize,m_EngineID);
+	m_decoder=new CVideoDecoder(m_EngineID);
 	AddData(startCode, sizeof(startCode));
 
   #ifndef _LP_FOR_LINUX_
 	InitializeCriticalSection(&m_criticalSection);
   #endif
 	m_ready=1;
+	TRACE_INFO(engineId, "Constructor done");
 }
 
 /**
@@ -45,7 +47,7 @@ Destructor
 */
 H264VideoSink::~H264VideoSink()
 {
-	TRACE_INFO("Cleaning up video sink");
+	TRACE_INFO(m_EngineID,"Destructor");
 	m_ready=0;
     if(m_buffer!=NULL)
         delete [] m_buffer;
@@ -59,6 +61,7 @@ H264VideoSink::~H264VideoSink()
 	if(m_frameQueue!=NULL)
 		delete m_frameQueue;
 	m_frameQueue=NULL;
+	TRACE_INFO(m_EngineID,"Destructor Done");
 }
 
 /**
@@ -82,10 +85,10 @@ Boolean H264VideoSink::continuePlaying()
 {
 	if (fSource == NULL)
 	{
-		TRACE_ERROR("no source for continue play");
+		TRACE_ERROR(-1,"no source for continue play");
 		return False;
 	}
-	TRACE_VERBOSE("BufferSize=%d",m_bufferSize);
+	TRACE_DEBUG(-1,"BufferSize=%d",m_bufferSize);
 	fSource->getNextFrame(m_buffer + m_fPos, m_bufferSize - m_fPos, afterGettingFrame, this, onSourceClosure, this);
 	return True;
 }
@@ -96,12 +99,12 @@ Called by the live555 code once we have a frame
 void H264VideoSink::afterGettingFrame(void* clientData, unsigned frameSize, unsigned numTruncatedBytes,
 				  struct timeval presentationTime, unsigned durationInMicroseconds)
 {
-	TRACE_VERBOSE("FrameSize=%d",frameSize);
+	TRACE_DEBUG(-1,"FrameSize=%d",frameSize);
 	H264VideoSink* sink = (H264VideoSink*)clientData;
 	sink->afterGettingFrame1(frameSize, presentationTime);
 	if (sink->continuePlaying() == false)
 	{
-		TRACE_ERROR("Continue play failed closing source");
+		TRACE_ERROR(-1,"Continue play failed closing source");
 		sink->onSourceClosure(clientData);
 	}
 }
@@ -133,9 +136,11 @@ void H264VideoSink::afterGettingFrame1(unsigned frameSize, struct timeval presen
   }
 
 	// send the frame out to the decoder
+	TRACE_DEBUG(m_EngineID,"Decoding Frame");
 	frame=m_decoder->DecodeFrame(pBuffer, size);
 	if(frame!=NULL)
   {
+	TRACE_DEBUG(m_EngineID,"++++++Decoded Frame");
 		m_frameQueue->put(frame);
   }
 }

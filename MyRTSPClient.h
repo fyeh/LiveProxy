@@ -16,13 +16,14 @@ and implement the rtsp interface to receive video frames see both
 
 class MyRTSPClient: public RTSPClient {
 public:
-	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort, portNumBits tunnelOverHTTPPortNum);
+	static MyRTSPClient* createNew(UsageEnvironment& env, char const* rtspURL, int frameQueueSize, int streamPort, portNumBits tunnelOverHTTPPortNum, CstreamMedia* client);
 	virtual ~MyRTSPClient();
 
 protected:
-	MyRTSPClient(UsageEnvironment& env, char const* rtspURL, int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize, int streamPort);
+	MyRTSPClient(UsageEnvironment& env, char const* rtspURL, int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum, int frameQueueSize, int streamPort, CstreamMedia* client);
 
   int  m_streamPort;
+  bool m_bErrorState;
 
 public:
 	StreamTrack* get_StreamTrack(){return tk;}
@@ -33,9 +34,12 @@ public:
 
 	portNumBits  get_TCPstreamPort(){return m_tunnelOverHTTPPortNum;}
 
+	bool GetErrorState() { return m_bErrorState; }
+	void SetErrorState(bool state) { m_bErrorState = state; }
 public:
 	StreamClientState scs;
 	H264VideoSink * m_sink;
 	StreamTrack * tk;
 	portNumBits m_tunnelOverHTTPPortNum;
+  	CstreamMedia* mediaClient;
 };

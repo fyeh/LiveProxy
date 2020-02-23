@@ -9,8 +9,10 @@ The queue of video frames.
 Initalize the queue with the specified size
 \param queueSize The size of the video queue
 */
-CMediaQueue::CMediaQueue(int queueSize)
+CMediaQueue::CMediaQueue(int queueSize, int engineId)
 {
+	m_EngineID = engineId;
+	TRACE_INFO(m_EngineID,"Constructor");
 	count = 0;
 	size=queueSize;
 	head = tail = NULL;
@@ -31,6 +33,8 @@ CMediaQueue::CMediaQueue(int queueSize)
 	//hRecvEvent     = CreateEvent(NULL, TRUE, FALSE, NULL);
 	hFrameListLock = new MyMutex();
 	hRecvEvent     = new MyEvent();
+	hDestroyMutex = new MyMutex();
+	TRACE_INFO(m_EngineID,"Constructor Done");
 
 }
 
@@ -39,9 +43,11 @@ Cleanup the queuw
 */
 CMediaQueue::~CMediaQueue()
 {
+	TRACE_INFO(m_EngineID,"Destructor");
+	hDestroyMutex -> LockMutex();
 	delete hRecvEvent;
-	delete hFrameListLock;
 
+	hFrameListLock -> LockMutex();
 	//empty the queue
 	while (count >= 0)
 	{
@@ -55,7 +61,11 @@ CMediaQueue::~CMediaQueue()
 		readpos = readpos->next;
 	}
 	free(pstatic);
-
+	hFrameListLock -> ReleaseMutex();
+	delete hFrameListLock;
+	hDestroyMutex -> ReleaseMutex();
+	delete hDestroyMutex;
+	TRACE_INFO(m_EngineID,"Destructor done");
 }
 
 
@@ -68,11 +78,11 @@ void CMediaQueue::put(FrameInfo* frame)
 		return;
 
 	hFrameListLock -> LockMutex();
-	TRACE_DEBUG("new frame, have %d", count);
+	TRACE_DEBUG(m_EngineID,"new frame, have %d", count);
 
 	if (count >= size)
 	{
-		TRACE_DEBUG("drop frame to make room");
+		TRACE_DEBUG(m_EngineID,"drop frame to make room");
 		//remove a frame so we can add one
 		count = size-1;
 		if (readpos->frame)
@@ -98,13 +108,15 @@ void CMediaQueue::put(FrameInfo* frame)
 /**
 Remove a video frame from the queue
 */
-FrameInfo* CMediaQueue::get()
+bool CMediaQueue::get(unsigned char* transBuf, int bufSize)
 {
+	hDestroyMutex -> LockMutex();
 	FrameInfo* frame = NULL;
-
+	bool ret = false;
+	
 	if (count < 1)
 	{
-		TRACE_DEBUG("No frames in queue, waiting");
+		TRACE_DEBUG(m_EngineID,"No frames in queue, waiting");
 		hRecvEvent -> WaitEvent(500);
 	}
 
@@ -114,15 +126,24 @@ FrameInfo* CMediaQueue::get()
 	if(count > 0)
 	{
 		frame = readpos->frame;
+		if (bufSize >= frame->frameHead.FrameLen)
+		{
+			memcpy(transBuf, frame->pdata, frame->frameHead.FrameLen);
+		} else{
+			memcpy(transBuf, frame->pdata, bufSize);
+		}
+		ret = true;
 		readpos->frame =  NULL;
 		readpos = readpos->next;
 		count--;
+		free(frame);
 	}else{
-		TRACE_WARN("No frames in queue after wait");
+		TRACE_DEBUG(m_EngineID,"No frames in queue after wait");
 	}
 	hFrameListLock -> ReleaseMutex();
+	hDestroyMutex -> ReleaseMutex();
 
-	return(frame);
+	return(ret);
 }
 
 /**

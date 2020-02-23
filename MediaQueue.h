@@ -43,15 +43,18 @@ class CMediaQueue
 	MediaQueue *ptr, *pstatic;
 	MyMutex*		hFrameListLock;
 	MyEvent*  	hRecvEvent;
+	MyMutex*		hDestroyMutex;
 	int			count;
 	int			size;
+	int			m_EngineID;
 
 public:
-	CMediaQueue(int queueSize);
+	CMediaQueue(int queueSize, int engineId);
 	~CMediaQueue();
 
 	void put(FrameInfo* frame);
-	FrameInfo* get();
+	//FrameInfo* get();
+	bool get(unsigned char* transBuf, int bufSize);
 	void reset();
 
 public:

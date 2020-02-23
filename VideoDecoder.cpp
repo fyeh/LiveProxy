@@ -22,11 +22,12 @@ inline FrameInfo* FrameNew(int frame_size = 4096)
 * Allocates a AVFrame that will be reused by the decoder.  Always
 * initializes the ffmpeg decoding library, to accept a H264 frame
 */
-CVideoDecoder::CVideoDecoder(void)
+CVideoDecoder::CVideoDecoder(int engineId)
 {
+	m_EngineID = engineId;
+	TRACE_INFO(m_EngineID,"Constructor");
 	try
 	{
-		TRACE_INFO("Register codecs");
 		avcodec_register_all();
 
     av_log_set_level(AV_LOG_ERROR);
@@ -34,21 +35,21 @@ CVideoDecoder::CVideoDecoder(void)
 		//m_frame = avcodec_alloc_frame();
 		m_frame = av_frame_alloc();
 
-		TRACE_INFO("Find codec");
+		TRACE_VERBOSE(m_EngineID,"Find codec");
 		//m_codec = avcodec_find_decoder(CODEC_ID_H264);
 		m_codec = avcodec_find_decoder(AV_CODEC_ID_H264);
 		if ( m_codec != NULL)
 		{
-			TRACE_INFO("Decoder found");
+			TRACE_VERBOSE(m_EngineID,"Decoder found");
 		}else{
-			TRACE_ERROR("H264 Codec decoder not found");
+			TRACE_ERROR(m_EngineID,"H264 Codec decoder not found");
 		}
 
-		TRACE_INFO("Allocate codec context");
+		TRACE_VERBOSE(m_EngineID,"Allocate codec context");
 		m_codecContext = avcodec_alloc_context3(m_codec);
 		if ( m_codecContext == NULL)
 		{
-			TRACE_ERROR("failed to allocate codec context");
+			TRACE_ERROR(m_EngineID,"failed to allocate codec context");
 		}
 
 		m_codecContext->flags = 0;
@@ -56,13 +57,13 @@ CVideoDecoder::CVideoDecoder(void)
 //    if (m_codec->capabilities & AV_CODEC_CAP_TRUNCATED)
 //        m_codecContext->flags |= AV_CODEC_FLAG_TRUNCATED; // we do not send complete frames
 
-		TRACE_INFO("open codec");
+		TRACE_VERBOSE(m_EngineID,"open codec");
 		int ret=avcodec_open2(m_codecContext, m_codec, NULL);
 		if (ret < 0)
 		{
-			TRACE_ERROR("Error opening codec ret=%d",ret);
+			TRACE_ERROR(m_EngineID,"Error opening codec ret=%d",ret);
 		}else{
-			TRACE_INFO("AV Codec found and opened");
+			TRACE_VERBOSE(m_EngineID,"AV Codec found and opened");
 		}
 
 		//if ( m_codecContext->codec_id == CODEC_ID_H264 )
@@ -71,8 +72,9 @@ CVideoDecoder::CVideoDecoder(void)
 	}
 	catch (...)
 	{
-		TRACE_WARN("Ignoring Exception");
+		TRACE_WARN(m_EngineID,"Ignoring Exception");
 	}
+	TRACE_INFO(m_EngineID,"Constructor Done");
 }
 
 /** VideoDecoder descructor.
@@ -82,7 +84,7 @@ CVideoDecoder::CVideoDecoder(void)
 
 CVideoDecoder::~CVideoDecoder()
 {
-	TRACE_INFO("Cleaning up video decoder");
+	TRACE_INFO(m_EngineID,"Destructor");
   if (m_frame!=NULL)
   {
       avcodec_close(m_codecContext);
@@ -93,6 +95,7 @@ CVideoDecoder::~CVideoDecoder()
   if (m_codecContext!=NULL)
       av_free(m_codecContext);
 	m_codecContext = NULL;
+	TRACE_INFO(m_EngineID,"Destructor Done");
 }
 
 /** Decoder.
@@ -120,13 +123,13 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 
     while (packet.size > sizeof(startCode4))
 		{
-			//TRACE_DEBUG("sending decode of %d", size);
+			TRACE_DEBUG(m_EngineID,"sending decode of %d", size);
 			#if 0
 			//Decode the video frame of size avpkt->size from avpkt->data into picture.
 			int len = avcodec_decode_video2(m_codecContext, m_frame, &got_frame, &packet);
 			if(len<0)
 			{
-				TRACE_ERROR("Failed to decode video error rc=%d",len);
+				TRACE_ERROR(m_EngineID,"Failed to decode video error rc=%d",len);
 				break;
 			}
 
@@ -134,7 +137,7 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 			//forward and try again
       if ( !got_frame )
 			{
-				TRACE_DEBUG("did not get full frame, consumed %d, continue", len);
+				TRACE_DEBUG(m_EngineID,"did not get full frame, consumed %d, continue", len);
 				packet.size -= len;
 				packet.data += len;
 				continue;
@@ -149,12 +152,12 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 			}
 			else
 			{
-				TRACE_INFO( "got error ret %d from send packet\n", iRet);
+				TRACE_DEBUG(m_EngineID,"got error ret %d from send packet\n", iRet);
 				return NULL;
 			}
 			if( iRet != 0 )
 			{
-				TRACE_INFO( "got error ret %d from receive frame\n", iRet);
+				TRACE_DEBUG(m_EngineID,"got error ret %d from receive frame\n", iRet);
 				return NULL;
 			}
 			#endif
@@ -164,12 +167,12 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 			AVFrame * rgb = av_frame_alloc();
 			if(rgb==NULL)
 			{
-				TRACE_ERROR("Failed to allocate new av frame");
+				TRACE_ERROR(m_EngineID,"Failed to allocate new av frame");
 				return NULL;
 			}
 
 			//Allocate and return an SwsContext.
-			TRACE_DEBUG( "convert now w %d, h %d\n", m_codecContext->width,m_codecContext->height);
+			TRACE_DEBUG(m_EngineID,"convert now w %d, h %d\n", m_codecContext->width,m_codecContext->height);
 			struct SwsContext * scale_ctx = sws_getContext(m_codecContext->width,
 				m_codecContext->height,
 				m_codecContext->pix_fmt,
@@ -184,7 +187,7 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 				NULL);
       if (scale_ctx == NULL)
 			{
-				TRACE_ERROR("Failed to get context");
+				TRACE_ERROR(m_EngineID,"Failed to get context");
 				continue;
 			}
 
@@ -230,7 +233,7 @@ FrameInfo* CVideoDecoder::DecodeFrame(unsigned char *pBuffer, int size)
 			}
 			catch(...)
 			{
-				TRACE_ERROR("EXCEPTION: in afterGettingFrame1 ");
+				TRACE_ERROR(m_EngineID,"EXCEPTION: in afterGettingFrame1 ");
 			}
 
 			//cleanup the working buffer

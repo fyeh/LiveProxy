@@ -2,13 +2,6 @@
 #include "MyUsageEnvironment.h"
 #include "trace.h"
 
-CMyUsageEnvironment*
-CMyUsageEnvironment::createNew(TaskScheduler& taskScheduler) {
-  return new CMyUsageEnvironment(taskScheduler);
-}
-
-
-
 CMyUsageEnvironment::CMyUsageEnvironment(TaskScheduler& taskScheduler) : BasicUsageEnvironment(taskScheduler)
 {
 }
@@ -50,7 +43,7 @@ void  CMyUsageEnvironment::uenv_log(){
   if(m_logstream.str ()[len-1] == '\n')
 	{
 		std::string str(m_logstream.str());
-		TRACE_DEBUG(str.c_str());
+		TRACE_DEBUG(-1,str.c_str());
 		m_logstream.str(std::string());
 	}
 }

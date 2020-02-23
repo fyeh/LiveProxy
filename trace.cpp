@@ -18,6 +18,7 @@ extern "C"
 {
 	int g_logLevel=LOGLEVEL_ERROR; //-1;
 	logHandler* loggingCallback=NULL;
+	int engineID = -1;
 	/**
 	Native interface to managed logger
 	*/
@@ -36,14 +37,14 @@ extern "C"
 		}
 	}
 
-	_declspec(dllexport) void InitializeTraceHelper(int level,logHandler* callback){
+	_declspec(dllexport) void InitializeTraceHelper(int level, logHandler* callback){
 		g_logLevel=level;
 		loggingCallback=callback;
 	}
 	/**
 	Creates the message
 	*/
-	_declspec(dllexport) void Log(int level, const char * functionName, const char * lpszFormat, ...)
+	_declspec(dllexport) void Log(int level, const char * functionName, int engineId, const char * lpszFormat, ...)
 	{
 		if(level>g_logLevel)return;
 		static char szMsg[2048];
@@ -60,7 +61,7 @@ extern "C"
 		va_end(argList);
 		//std::string logMsg=static_cast<std::ostringstream*>( &(std::ostringstream() << ::GetCurrentProcessId() << "," << ::GetCurrentThreadId() << "," << functionName << ", " <<  szMsg) )->str();
 		std::ostringstream oss;
-		oss << GetCurrentProcessId() << "," << GetCurrentThreadId() << "," << functionName << ", " <<  szMsg;
+		oss << GetCurrentProcessId() << "," << GetCurrentThreadId() << "," << engineId << "," << functionName << ", " <<  szMsg;
 		std::string logMsg=oss.str();
 		try{
 			Write(level, logMsg.c_str());

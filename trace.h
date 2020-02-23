@@ -10,18 +10,20 @@
 #define LOGLEVEL_VERBOSE 5
 #define LOGLEVEL_DEBUG 6
 
-#define TRACE_CRITICAL(x,...) Log(LOGLEVEL_CRITICAL, __FUNCTION__, x, ##__VA_ARGS__)
-#define TRACE_ERROR(x,...) Log(LOGLEVEL_ERROR, __FUNCTION__, x, ##__VA_ARGS__)
-#define TRACE_WARN(x,...) Log(LOGLEVEL_WARN, __FUNCTION__, x, ##__VA_ARGS__)
-#define TRACE_INFO(x,...) Log(LOGLEVEL_INFO, __FUNCTION__, x, ##__VA_ARGS__)
-#define TRACE_VERBOSE(x,...) Log(LOGLEVEL_VERBOSE, __FUNCTION__, x, ##__VA_ARGS__)
-#define TRACE_DEBUG(x,...) Log(LOGLEVEL_DEBUG, __FUNCTION__, x, ##__VA_ARGS__)
+#define TRACE_CRITICAL(y,x,...) Log(LOGLEVEL_CRITICAL, __FUNCTION__, y, x, ##__VA_ARGS__)
+#define TRACE_ERROR(y,x,...) Log(LOGLEVEL_ERROR, __FUNCTION__, y, x, ##__VA_ARGS__)
+#define TRACE_WARN(y,x,...) Log(LOGLEVEL_WARN, __FUNCTION__, y, x, ##__VA_ARGS__)
+#define TRACE_INFO(y,x,...) Log(LOGLEVEL_INFO, __FUNCTION__, y, x, ##__VA_ARGS__)
+#define TRACE_VERBOSE(y,x,...) Log(LOGLEVEL_VERBOSE, __FUNCTION__, y, x, ##__VA_ARGS__)
+#define TRACE_DEBUG(y,x,...) Log(LOGLEVEL_DEBUG, __FUNCTION__, y, x, ##__VA_ARGS__)
+
+//extern int g_logLevel;
 
 extern "C"
 {
 	extern int g_logLevel;
 
 	typedef void (logHandler)(int level, const char* msg);
-	_declspec(dllexport) void InitializeTraceHelper(int level,logHandler* callback);
-	_declspec(dllexport) void Log(int level, const char * functionName, const char * lpszFormat, ...);
+	_declspec(dllexport) void InitializeTraceHelper(int level, logHandler* callback);
+	_declspec(dllexport) void Log(int level, const char * functionName, int engineId, const char * lpszFormat, ...);
 }

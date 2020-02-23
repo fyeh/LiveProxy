@@ -11,7 +11,8 @@ class CMyUsageEnvironment :
 	public BasicUsageEnvironment
 {
 public:
-  static CMyUsageEnvironment* createNew(TaskScheduler& taskScheduler);
+  //static CMyUsageEnvironment* createNew(TaskScheduler& taskScheduler);
+  //CMyUsageEnvironment* createNew(TaskScheduler& taskScheduler);
 public:
 
 	CMyUsageEnvironment(TaskScheduler& taskScheduler);
