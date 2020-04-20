@@ -10,7 +10,7 @@ Define a class to hold per-stream state that we maintain throughout each stream'
 */
 class StreamClientState {
 public:
-	StreamClientState();
+	StreamClientState(int engineId);
 	virtual ~StreamClientState();
 
 public:
@@ -19,4 +19,5 @@ public:
 	MediaSubsession* subsession;
 	TaskToken streamTimerTask;
 	double duration;
+	int m_EngineId;
 };

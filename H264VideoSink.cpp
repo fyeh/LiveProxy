@@ -58,6 +58,10 @@ H264VideoSink::~H264VideoSink()
         delete [] m_fStreamId;
 	m_fStreamId = NULL;
 
+	if (m_decoder != NULL)
+		delete m_decoder;
+	m_decoder = NULL;
+
 	if(m_frameQueue!=NULL)
 		delete m_frameQueue;
 	m_frameQueue=NULL;
