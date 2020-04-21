@@ -30,7 +30,8 @@ void onScheduledDelayedTask(void* clientData);
 void setupNextSubsession(RTSPClient* rtspClient);
 
 // Used to shut down and close a stream (including its "RTSPClient" object):
-void shutdownStream(RTSPClient* rtspClient, int exitCode = 1);
+// exit code 0 means do not try to restart, exit code 1 means try to restart
+void shutdownStream(RTSPClient* rtspClient, int exitCode = 0);
 
 // A function that outputs a string that identifies each stream (for debugging output).  Modify this
 // if you wish:
@@ -98,23 +99,27 @@ void* rtspRecvDataThread(void* lpParam)
     // This function call does not return, unless, at some point in time, "eventLoopWatchVariable"
     // gets set to something non-zero.
     env->taskScheduler().doEventLoop(&mediaClient->eventLoopWatchVariable);
+	
+	// After Exiting Event Loop make sure everything is shut down.
     TRACE_INFO(mediaClient->m_EngineID,"Exited Event Loop");
+	mediaClient->SetRTSPState(RTSP_STATE_CLOSING);
+	
+	// is stream is up shut it down
     if (mediaClient->streamUp)
     {
-	    shutdownStream(rtspClient,1); // we get here from CloseStream so shut down rtspClient and its resources
+	    shutdownStream(rtspClient,0); // shutdown all sessions and rtspClient
     }
+	
     env->reclaim(); env = NULL;
     delete scheduler; scheduler = NULL;
     mediaClient->scheduler = NULL;
     mediaClient->env = NULL;
     mediaClient->rtsp = NULL;
     mediaClient->threadUp = false;
-    if (mediaClient->GetRTSPState() != RTSP_STATE_SHUTDOWN)
-    {
-    	TRACE_VERBOSE(mediaClient->m_EngineID,"Set state to RTSP_STATE_CLOSED");
-    	mediaClient->SetRTSPState(RTSP_STATE_CLOSED);
-		mediaClient->rtspClientCloseStream();
-    }
+
+	TRACE_VERBOSE(mediaClient->m_EngineID,"Set state to RTSP_STATE_CLOSED");
+	mediaClient->SetRTSPState(RTSP_STATE_CLOSED);
+	mediaClient->rtspClientCloseStream();
 
     TRACE_INFO(mediaClient->m_EngineID,"Exiting");
     return NULL;
@@ -151,10 +156,11 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
         TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"Failed to get a SDP description:");
         goto cleanup;
     }
-
-    rtspClient->mediaClient->streamUp = true;
-    // Create a media session object from this SDP description:
+    //
+    // ***Create a media session object from this SDP description:***
+	//
     scs.session = MediaSession::createNew(env, sdpDescription);
+	
     delete[] sdpDescription; // because we don't need it anymore
     if (scs.session == NULL)
     {
@@ -167,6 +173,7 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
         TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"This session has no media subsessions (i.e., no m=lines)");
         goto cleanup;
     }
+	rtspClient->mediaClient->streamUp = true;
 
     // Then, create and set up our data source objects for the session.  We do this by iterating
     // over the session's 'subsessions', calling "MediaSubsession::initiate()", and then sending a
@@ -179,7 +186,7 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
 cleanup:
     TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Set state to RTSP_STATE_ERROR");
     rtspClient->mediaClient->SetRTSPState(RTSP_STATE_ERROR);
-    shutdownStream(rtspClient);
+    shutdownStream(rtspClient, 0);
 }
 
 /**
@@ -395,7 +402,7 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
 
 
 /**
-Response to the sendSetupCommand
+Response to the sendPlayCommand
 */
 void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultString)
 {
@@ -409,7 +416,7 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
         TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"Failed to start playing session: %s", resultString);
     	TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Set state to RTSP_STATE_ERROR");
         rtspClient->mediaClient->SetRTSPState(RTSP_STATE_ERROR);
-        shutdownStream(rtspClient);
+        shutdownStream(rtspClient, 1);
         return;
     }
 
@@ -420,17 +427,40 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
 
     // checkForPacketArrival(rtspClient);
 
-    if (((MyRTSPClient*)rtspClient)->get_TCPstreamPort() != 0)
+    // The standard only requires keep alives for RTP over RTSP, but some cameras / encoders need it if RTCP is using multicast 
+    // so add that check as well
+
+    bool sendKeepAlive = ((MyRTSPClient *)rtspClient)->get_TCPstreamPort() != 0;
+    const StreamTrack *track = ((MyRTSPClient *) rtspClient)->mediaClient->GetTrack();
+    if (track == NULL) {
+      TRACE_WARN (rtspClient->mediaClient->m_EngineID, "Could not get StreamTrack from rtspClient, RTSP keepalive is %s", (sendKeepAlive) ? "true" : "false");
+    } else {
+      const MediaSubsession *sub = track->sub;
+      if (sub == NULL) {
+	TRACE_WARN (rtspClient->mediaClient->m_EngineID, "Could not get subsession from track.  RTSP keepalive is %s", (sendKeepAlive) ? "true" : "false");
+      } else {
+	TRACE_INFO(rtspClient->mediaClient->m_EngineID, "connection endpoint address is %x", ntohl(sub->connectionEndpointAddress()));
+	if ((ntohl(sub->connectionEndpointAddress()) & 0xF0000000) == 0xE0000000) {
+	  TRACE_INFO (rtspClient->mediaClient->m_EngineID, "Session is multicast, setting keepalive to true\n");
+	  sendKeepAlive = true;
+	} else {
+	  TRACE_INFO (rtspClient->mediaClient->m_EngineID, "Session is not multicast, keepalive stays at %s", (sendKeepAlive) ? "true" : "false");
+	}
+      }
+    }
+    
+
+    if (sendKeepAlive)
     {
         // setup our keep alive using a delayed task
-	// the scheduled task will be unscheduled by the scs descrtuctor
+		// the scheduled task will be unscheduled by the scs destructor
         TRACE_INFO(rtspClient->mediaClient->m_EngineID,"Schedule keep alive task");
         scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(
             keepAliveTimer, onScheduledDelayedTask, rtspClient);
     }
     else
     {
-        TRACE_INFO(rtspClient->mediaClient->m_EngineID,"no need for keep alive task as we're not using TCP for streaming");
+        TRACE_INFO(rtspClient->mediaClient->m_EngineID,"no need for keep alive task as we're not using TCP for streaming and it's not a multicast stream");
     }
 }
 
@@ -442,8 +472,6 @@ void subsessionAfterPlaying(void* clientData)
     MediaSubsession* subsession = (MediaSubsession*)clientData;
     RTSPClient* rtspClient = (RTSPClient*)(subsession->miscPtr);
     TRACE_INFO(rtspClient->mediaClient->m_EngineID,"Entered");
-    TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Set state to RTSP_STATE_CLOSING");
-    rtspClient->mediaClient->SetRTSPState(RTSP_STATE_CLOSING); // In case we get here without a BYE
 
     // Begin by closing this subsession's stream:
     Medium::close(subsession->sink);
@@ -455,11 +483,15 @@ void subsessionAfterPlaying(void* clientData)
     while ((subsession = iter.next()) != NULL)
     {
         if (subsession->sink != NULL)
+		{
+			TRACE_INFO(rtspClient->mediaClient->m_EngineID,">>>>>>>>>>>subsession still active<<<<<<<<<");
             return; // this subsession is still active
+		}
     }
 
-    // All subsessions' streams have now been closed, so shutdown the client:
-    shutdownStream(rtspClient);
+    // All subsessions' streams have now been closed, so shutdown the Stream
+	// Set the Retrying state so we will try to reopen the connection once.
+    shutdownStream(rtspClient, 1);
 }
 
 /**
@@ -471,8 +503,6 @@ void subsessionByeHandler(void* clientData)
     // UsageEnvironment& env = rtspClient->envir(); // alias
 
     TRACE_WARN(rtspClient->mediaClient->m_EngineID,"!!!!!Received RTCP \"BYE\" on subsession!!!!!");
-
-    // Now act as if the subsession had closed:
     subsessionAfterPlaying(subsession);
 }
 
@@ -488,19 +518,25 @@ void streamTimerHandler(void* clientData)
     scs.streamTimerTask = NULL;
 
     // Shut down the stream:
-    shutdownStream(rtspClient);
+    shutdownStream(rtspClient, 1);
 }
 
 /**
-Cleanup and shutdown the stream
+Cleanup and shutdown the stream sessions and rtspClient
 */
 void shutdownStream(RTSPClient* rtspClient, int exitCode)
 {
     TRACE_INFO(rtspClient->mediaClient->m_EngineID,"ExitCode=%d", exitCode);
-    TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Set state to RTSP_STATE_CLOSING");
-    rtspClient->mediaClient->SetRTSPState(RTSP_STATE_CLOSING);
-    // UsageEnvironment& env = rtspClient->envir(); // alias
+	if (exitCode == 1)
+	{
+		TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Set state to RTSP_STATE_CLOSING");
+		rtspClient->mediaClient->SetRTSPState(RTSP_STATE_CLOSING);
+	}
+    UsageEnvironment& env = rtspClient->envir(); // alias
     StreamClientState& scs = ((MyRTSPClient*)rtspClient)->scs; // alias
+	
+	// Cancel any pending tasks:
+	env.taskScheduler().unscheduleDelayedTask(scs.streamTimerTask);
 
     // First, check whether any subsessions have still to be closed:
     if (scs.session != NULL)
@@ -526,18 +562,21 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode)
             rtspClient->sendTeardownCommand(*scs.session, NULL);
         }
     }
-
+	CstreamMedia*	mediaClient = rtspClient->mediaClient; // we'll need this after we close the rtspClient
     TRACE_INFO(rtspClient->mediaClient->m_EngineID,"Closing the rtspClient");
     Medium::close(rtspClient);
     // Note that this will also cause this stream's "StreamClientState" structure to get reclaimed.
 
-    rtspClient->mediaClient->rtspClientCount-- ;
-	if (rtspClient->mediaClient->threadUp)
+    mediaClient->rtspClientCount-- ;
+	mediaClient->streamUp = false;
+
+	if (mediaClient->threadUp)
 	{
-    		TRACE_INFO(rtspClient->mediaClient->m_EngineID,"Signal Thread to Stop");
-		rtspClient->mediaClient->eventLoopWatchVariable = 1; // we got here after an RTSP BYE so signal thread to close
+    	TRACE_INFO(mediaClient->m_EngineID,"Signal Thread to Stop");
+		mediaClient->eventLoopWatchVariable = 1; // signal thread to close
 	}
-    	TRACE_INFO(rtspClient->mediaClient->m_EngineID,"Done");
+
+   	TRACE_INFO(mediaClient->m_EngineID,"Done");
 }
 
 void onScheduledDelayedTask(void* clientData)
@@ -588,6 +627,7 @@ CstreamMedia::CstreamMedia(int frameQueueSize, int engineId, int logLevel)
     scheduler = NULL;
     env = NULL;
     rtsp = NULL;
+	m_url = "";
     b_tcp_stream = 0; // normal udp
     i_stream = 0;
     event = 0;
@@ -609,6 +649,12 @@ CstreamMedia::~CstreamMedia()
 {
 	TRACE_INFO(m_EngineID,"Entered");
     StreamTrack* tr;
+	
+	rtspClientCloseStream();
+	// wait for everything to close as thread functions need to 
+	// reference the media client variables
+	sleep(2);
+	
     SetRTSPState(RTSP_STATE_IDLE);
     m_recvThreadFlag = FALSE;
     if (stream != NULL)
@@ -630,17 +676,22 @@ Start streaming video from the open stream
 */
 int CstreamMedia::rtspClientPlayStream(const char* url)
 {
+
     TRACE_INFO(m_EngineID,"URL=%s", url);
-    this->m_url = url;
+	this->m_url = url;
     event = 0;
-
-    StreamTrack* tk = new StreamTrack;
-    stream = (StreamTrack**)realloc(stream, sizeof(StreamTrack) * (i_stream + 1));
-    stream[i_stream++] = tk;
-    TRACE_VERBOSE(m_EngineID,"Allocates streamtrack %d, ptr %p", i_stream, tk);
-
-    SetRTSPState(RTSP_STATE_OPENING);
-    hRecvDataThread = new MyThread(rtspRecvDataThread, this);
+	if (m_state == RTSP_STATE_OPENING || m_state == RTSP_STATE_OPENED || m_state == RTSP_STATE_PLAYING)
+	{
+		return 0;
+	}
+	
+	SetRTSPState(RTSP_STATE_OPENING);
+	StreamTrack* tk = new StreamTrack;
+	stream = (StreamTrack**)realloc(stream, sizeof(StreamTrack) * (i_stream + 1));
+	stream[i_stream++] = tk;
+	TRACE_VERBOSE(m_EngineID,"Allocates streamtrack %d, ptr %p", i_stream, tk);
+	
+	hRecvDataThread = new MyThread(rtspRecvDataThread, this);
 
     return 0;
 }
@@ -658,11 +709,14 @@ int CstreamMedia::rtspClientCloseStream(void)
         TRACE_VERBOSE(m_EngineID,"nothing to do");
         return (0);
     }
+
     if (m_state != RTSP_STATE_CLOSED && m_state != RTSP_STATE_CLOSING)
     {
         TRACE_INFO(m_EngineID,"Signalling Thread to stop");
-	eventLoopWatchVariable = 1;
+		eventLoopWatchVariable = 1;
+		return 0;
     }
+
 /*
 	while (m_state == RTSP_STATE_OPENING || m_state == RTSP_STATE_OPENED)
 	{

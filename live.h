@@ -48,9 +48,9 @@ enum RTSPClientState
 {
     RTSP_STATE_IDLE, // Nothing happening yet
     RTSP_STATE_OPENING, // Thread started and RTSP commands in progress
-    RTSP_STATE_OPENED, // Sessions being set up
+    RTSP_STATE_OPENED, // Sessions being set up 
     RTSP_STATE_PLAYING, 
-    RTSP_STATE_PAUSED,  
+    RTSP_STATE_PAUSED,
     RTSP_STATE_CLOSING, // Started shutting down Sessions and Thread
     RTSP_STATE_CLOSED, // Sessions and Thread shutdown and cleaned up
     RTSP_STATE_SHUTDOWN, // CstreamMedia cleaned up
@@ -112,8 +112,7 @@ private:
     MyRTSPClient* rtsp;
     int i_stream;
     StreamTrack** stream;
-    int b_tcp_stream;
-    std::string m_url;
+    int b_tcp_stream;   
     enum RTSPClientState m_state;
     char event;
     MyMutex* hFrameListLock;
@@ -138,7 +137,7 @@ public:
      */
     static const std::string& VERSION(void)
     {
-        static const std::string str = "3.0.0.4";
+        static const std::string str = "3.0.0.7";
 
         return str;
     }
@@ -148,6 +147,7 @@ public:
     // The rtsp thread
     int rtspClientPlayStream(const char* url);
     int rtspClientCloseStream(void);
+	void rtspClientStopStream(void);
 
     // State management
     RTSPClientState GetRTSPState() { return m_state; }
@@ -168,6 +168,7 @@ public:
         printf("cstreammed get track, num %d, ptr %p\n", i_stream, stream[0]);
         return stream[0];
     }
+	std::string m_url;
     unsigned rtspClientCount;
 	int m_LogLevel;
 	int m_EngineID;

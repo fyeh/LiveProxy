@@ -55,6 +55,7 @@ CMediaQueue::~CMediaQueue()
 		count--;
 		if (readpos!=NULL && readpos->frame != NULL)
 		{
+			TRACE_INFO(m_EngineID, "Free frame at %p",readpos);
 			free(readpos->frame);
 			readpos->frame = NULL;
 		}
@@ -97,6 +98,7 @@ void CMediaQueue::put(FrameInfo* frame)
 	writepos->frame = frame;
 	writepos =  writepos->next;
 	count++;
+	TRACE_DEBUG(m_EngineID, "Queue count = %d",count);
 
 	if (count <=1)
 	{
@@ -136,6 +138,7 @@ bool CMediaQueue::get(unsigned char* transBuf, int bufSize)
 		readpos->frame =  NULL;
 		readpos = readpos->next;
 		count--;
+		TRACE_DEBUG(m_EngineID, "Queue count = %d",count);
 		free(frame);
 	}else{
 		TRACE_DEBUG(m_EngineID,"No frames in queue after wait");
