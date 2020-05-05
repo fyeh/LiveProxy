@@ -203,22 +203,29 @@ void setupNextSubsession(RTSPClient* rtspClient)
 
     if (scs.subsession != NULL)
     {
-        if (streamPort != 0 && scs.subsession->clientPortNum() == 0)
-        {
-            TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"set stream port to %d", streamPort);
-            scs.subsession->setClientPortNum(streamPort);
-        }
-        if (!scs.subsession->initiate())
-        {
-            TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"Failed to initiate the subsession: &s", env.getResultMsg());
-            setupNextSubsession(rtspClient); // give up on this subsession; go to the next one
-        }
-        else
-        {
-            TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Initiated the subsession. Ports %d-%d", scs.subsession->clientPortNum(),
-                scs.subsession->clientPortNum() + 1);
-            // Continue setting up this subsession, by sending a RTSP "SETUP" command:
-            rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP);
+
+        // Only process subsessions that are of type video.  VA doesn't handle audio at this time
+        if (strcmp(scs.subsession->mediumName(), "video") != 0) {
+	  TRACE_VERBOSE (rtspClient->mediaClient->m_EngineID, "Skipping subsession of type %s", scs.subsession->mediumName());
+	  setupNextSubsession (rtspClient);
+	} else {
+            if (streamPort != 0 && scs.subsession->clientPortNum() == 0)
+            {
+                TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"set stream port to %d", streamPort);
+                scs.subsession->setClientPortNum(streamPort);
+            }
+            if (!scs.subsession->initiate())
+            {
+                TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"Failed to initiate the subsession: %s", env.getResultMsg());
+                setupNextSubsession(rtspClient); // give up on this subsession; go to the next one
+            }
+            else
+            {
+                TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Initiated the subsession. Ports %d-%d", scs.subsession->clientPortNum(),
+                    scs.subsession->clientPortNum() + 1);
+                // Continue setting up this subsession, by sending a RTSP "SETUP" command:
+                rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP);
+	    }
         }
         return;
     }
@@ -262,18 +269,19 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
         // here
 
         MyRTSPClient* client = (MyRTSPClient*)rtspClient;
-        scs.subsession->sink = client->get_sink();
-
-        if (scs.subsession->sink == NULL)
-        {
-            TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"Failed to set up the subsession: %s", env.getResultMsg());
-            break;
-        }
-
         MediaSubsession* sub = scs.subsession;
 
         if (!strcmp(sub->mediumName(), "video"))
         {
+
+	    scs.subsession->sink = client->get_sink();
+
+	    if (scs.subsession->sink == NULL)
+	    {
+	      TRACE_ERROR(rtspClient->mediaClient->m_EngineID,"Failed to set up the subsession: %s", env.getResultMsg());
+	      break;
+	    }
+	  
             StreamTrack* tk = client->get_StreamTrack();
             TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Found video session, port %d", sub->clientPortNum());
 
@@ -382,7 +390,7 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
             {
                 ;
             }
-        }
+	}	   
 
         TRACE_VERBOSE(rtspClient->mediaClient->m_EngineID,"Created a data sink for the subsession");
         scs.subsession->miscPtr = rtspClient; // a hack to let subsession handle functions get the
@@ -430,6 +438,7 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
     // The standard only requires keep alives for RTP over RTSP, but some cameras / encoders need it if RTCP is using multicast 
     // so add that check as well
 
+
     bool sendKeepAlive = ((MyRTSPClient *)rtspClient)->get_TCPstreamPort() != 0;
     const StreamTrack *track = ((MyRTSPClient *) rtspClient)->mediaClient->GetTrack();
     if (track == NULL) {
@@ -448,7 +457,6 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
 	}
       }
     }
-    
 
     if (sendKeepAlive)
     {
