@@ -42,4 +42,5 @@ public:
 	StreamTrack * tk;
 	portNumBits m_tunnelOverHTTPPortNum;
   	CstreamMedia* mediaClient;
+	bool m_bKeepAliveUseOptions;
 };

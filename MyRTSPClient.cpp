@@ -33,6 +33,7 @@ MyRTSPClient::MyRTSPClient(UsageEnvironment& env, char const* rtspURL,
 	m_sink=H264VideoSink::createNew(env, *scs.subsession, frameQueueSize, "DMH_STREAM", client->m_EngineID);
 	m_streamPort = streamPort;
 	m_bErrorState = false;
+	m_bKeepAliveUseOptions = true;
 	tk = NULL;
 	//scs = new StreamClientState(client->m_EngineID);
 	TRACE_INFO(client->m_EngineID,"Constructor Done");

@@ -8,7 +8,7 @@
 *  inline helper to create FrameInfo object
 \param frame_size Default frame size
 */
-inline FrameInfo* FrameNew(int frame_size = 4096)
+inline FrameInfo* FrameNew(int frame_size = 10000)
 {
 	FrameInfo* frame = (FrameInfo*)malloc(sizeof(FrameInfo)+frame_size);
 	if (frame == NULL)

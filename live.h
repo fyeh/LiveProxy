@@ -137,7 +137,7 @@ public:
      */
     static const std::string& VERSION(void)
     {
-        static const std::string str = "3.0.0.8";
+        static const std::string str = "3.0.0.10";
 
         return str;
     }

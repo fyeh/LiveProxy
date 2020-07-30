@@ -26,7 +26,7 @@ MediaSink(env), m_fSubsession(subsession) , m_ready(0)
 	TRACE_INFO(engineId, "Constructor");
 	m_fStreamId = strDup(streamId);
 	m_EngineID = engineId;
-	m_bufferSize=253440;//2*DUMMY_SINK_RECEIVE_BUFFER_SIZE;
+	m_bufferSize = 1920 * 4 * 1080;
   m_fPos = 0;
   uint8_t startCode[] = {0x00, 0x00,0x01};
 
