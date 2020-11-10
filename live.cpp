@@ -75,7 +75,7 @@ void *rtspRecvDataThread(void *lpParam) {
   // uses the same "rtsp://" URL).
   MyRTSPClient *rtspClient = MyRTSPClient::createNew(
       *env, mediaClient->get_Url(), mediaClient->m_frameQueueSize,
-      mediaClient->m_streamPort, mediaClient->m_streamOverTCPPort, mediaClient);
+      mediaClient->m_streamPort, mediaClient->m_iTunnelOverHTTPPortNum, mediaClient);
   TRACE_VERBOSE(mediaClient->m_EngineID, "&rtspClient = %p", rtspClient);
 
   if (rtspClient == NULL) {
@@ -246,7 +246,7 @@ void setupNextSubsession(RTSPClient *rtspClient) {
                       scs.subsession->clientPortNum() + 1);
         // Continue setting up this subsession, by sending a RTSP "SETUP"
         // command:
-        rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP);
+        rtspClient->sendSetupCommand(*scs.subsession, continueAfterSETUP, false, rtspClient->mediaClient->m_bStreamUsingTCP);
       }
     }
     return;
@@ -662,7 +662,6 @@ CstreamMedia::CstreamMedia(int frameQueueSize, int engineId, int logLevel) {
   env = NULL;
   rtsp = NULL;
   m_url = "";
-  b_tcp_stream = 0; // normal udp
   i_stream = 0;
   event = 0;
   SetRTSPState(RTSP_STATE_IDLE);
@@ -671,7 +670,8 @@ CstreamMedia::CstreamMedia(int frameQueueSize, int engineId, int logLevel) {
   hRecvDataThread = NULL;
   hFrameListLock = NULL;
   m_frameQueueSize = frameQueueSize;
-  m_streamOverTCPPort = 0;
+  m_iTunnelOverHTTPPortNum = 0; // not HTTP Tunneled
+  m_bStreamUsingTCP = false; // UDP by default
   rtspClientCount = 0;
 }
 

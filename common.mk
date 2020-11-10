@@ -22,6 +22,8 @@ MODINC?=
 MODLIBS?=
 OBJDIR?=
 
+CPU_ARCH := $(shell uname -m)
+
 ifeq ($(OS),Windows_NT)
 #CXX=msvc
 CXX=cl
@@ -38,6 +40,9 @@ LINKER_ENDGP=
 else
 CXX=g++
 CXXFLAGS=-Wall -fPIC -std=c++11 -m64 -D_LP_FOR_LINUX_ $(MODCXXFLAGS)
+ifeq ($(CPU_ARCH),aarch64)
+	CXXFLAGS=-Wall -fPIC -std=c++11 -D_LP_FOR_LINUX_ $(MODCXXFLAGS)
+endif
 DEBUGFLAG=-g -D_DEBUG
 OUTFLAG=-o
 CFLAGS=-Wall -fPIC -x c -D_LP_FOR_LINUX_ $(MODCFLAGS)

@@ -122,7 +122,8 @@ private:
     int nostream;
     int m_frameQueueSize;
     int m_streamPort;
-    int m_streamOverTCPPort;
+    int m_iTunnelOverHTTPPortNum;   // renamed for clarity
+                                    // if non-zero, HTTP-Tunneling will be used regardless of m_bStreamUsingTCP
 
 public:
     /*
@@ -137,7 +138,7 @@ public:
      */
     static const std::string& VERSION(void)
     {
-        static const std::string str = "3.0.0.10";
+        static const std::string str = "3.0.0.11";
 
         return str;
     }
@@ -161,7 +162,9 @@ public:
     const char* get_Url() { return m_url.c_str(); }
     int GetVideoParms(int* piWidth, int* piHeight);
     void SetStreamPort(int streamPort) { m_streamPort = streamPort; }
-    void SetTCPStreamPort(int streamPort) { m_streamOverTCPPort = streamPort; }
+    void SetHTTPTunnelPort(int tunnelPort) { m_iTunnelOverHTTPPortNum = tunnelPort; } // renamed for clarity
+    void SetTCPStreamPort(int tunnelPort) { m_iTunnelOverHTTPPortNum = tunnelPort; } // backwards compatibility with IBM VA SSE
+    void SetStreamUsingTCP(bool useTCP) { m_bStreamUsingTCP = useTCP; }
 
     const StreamTrack* GetTrack()
     {
@@ -175,6 +178,7 @@ public:
 	char eventLoopWatchVariable = 0; // used to break out of event loop
 	bool streamUp = false; // indicates if stream is up
 	bool threadUp = false; // indicates if thread is up
+    bool m_bStreamUsingTCP = false; // indicates whether to stream over TCP (interleaved, not HTTP-Tunneled)
 
 private:
     // our data thread
