@@ -10,9 +10,8 @@
 
 #endif
 
-#define keepAliveTimer                                                         \
-  55 * 1000000 // how many micro seconds between each keep alive  -- (JIH)
-               // FixMe: read this in from the URL
+#define keepAliveTime  (25 * 1000000) // how many micro seconds between each keep alive if no timeout is requested -- (JIH)
+
 
 // RTSP 'response handlers':
 void continueAfterOPTIONS(RTSPClient *rtspClient, int resultCode,
@@ -457,48 +456,34 @@ void continueAfterPLAY(RTSPClient *rtspClient, int resultCode,
   // The standard only requires keep alives for RTP over RTSP, but some cameras
   // / encoders need it if RTCP is using multicast so add that check as well
 
-  bool sendKeepAlive = ((MyRTSPClient *)rtspClient)->get_TCPstreamPort() != 0;
   const StreamTrack *track =
       ((MyRTSPClient *)rtspClient)->mediaClient->GetTrack();
   if (track == NULL) {
-    TRACE_WARN(
-        rtspClient->mediaClient->m_EngineID,
-        "Could not get StreamTrack from rtspClient, RTSP keepalive is %s",
-        (sendKeepAlive) ? "true" : "false");
+    TRACE_WARN(rtspClient->mediaClient->m_EngineID, "Could not get StreamTrack from rtspClient");
   } else {
     const MediaSubsession *sub = track->sub;
     if (sub == NULL) {
-      TRACE_WARN(rtspClient->mediaClient->m_EngineID,
-                 "Could not get subsession from track.  RTSP keepalive is %s",
-                 (sendKeepAlive) ? "true" : "false");
-    } else {
-      TRACE_INFO(rtspClient->mediaClient->m_EngineID,
-                 "connection endpoint address is %x",
-                 ntohl(sub->connectionEndpointAddress()));
-      if ((ntohl(sub->connectionEndpointAddress()) & 0xF0000000) ==
-          0xE0000000) {
-        TRACE_INFO(rtspClient->mediaClient->m_EngineID,
-                   "Session is multicast, setting keepalive to true\n");
-        sendKeepAlive = true;
-      } 
-      /*
-      else {
-        TRACE_INFO(rtspClient->mediaClient->m_EngineID,
-                   "Session is not multicast, keepalive stays at %s",
-                   (sendKeepAlive) ? "true" : "false");
-      }
-      */
-    }
+      TRACE_WARN(rtspClient->mediaClient->m_EngineID,  "Could not get subsession from track");
+    } 
   }
 
   // setup our keep alive using a delayed task
   // the scheduled task will be unscheduled by the scs destructor
-  // We are trying sending keep alives in all cases but sendKeepAlive 
-  // might get used again in the future.
+  // Check to see if keepAlive time value was set during negotiation
+  // if so, use that value (back off a couple of seconds) otherwise use a default keepAliveTime
 
   TRACE_INFO(rtspClient->mediaClient->m_EngineID, "Schedule keep alive task");
-  scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(
-      keepAliveTimer, onScheduledDelayedTask, rtspClient);
+
+  int64_t microtime = rtspClient->sessionTimeoutParameter() * (int64_t) 1000000;
+  if (microtime <= (4 * 1000000)) {  // the timeout needs to be at least 4 seconds long so we can subtract 2 secsfrom it to remove network delay race conditions
+    microtime = keepAliveTime;
+  }
+  microtime = microtime - (2 * 1000000); 
+  
+  TRACE_INFO(rtspClient->mediaClient->m_EngineID, "Schedule keep alive task for %d seconds", microtime / 1000000);
+  scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(microtime, onScheduledDelayedTask, rtspClient);
+
+  // scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(keepAliveTime, onScheduledDelayedTask, rtspClient);
 }
 
 /*------------------------------------------------------------*/
@@ -631,11 +616,17 @@ void onScheduledDelayedTask(void *clientData) {
     }
 
     // setup our keep alive using a delayed task
-    scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(
-        keepAliveTimer, onScheduledDelayedTask, rtspClient);
+
+  int64_t microtime = rtspClient->sessionTimeoutParameter() * (int64_t) 1000000;
+  if (microtime <= (4 * 1000000)) {  // the timeout needs to be at least 4 seconds long so we can subtract 2 secsfrom it to remove network delay race conditions
+    microtime = keepAliveTime;
+  }
+  microtime = microtime - (2 * 1000000); 
+
+  // scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(keepAliveTime, onScheduledDelayedTask, rtspClient);
+  scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(microtime, onScheduledDelayedTask, rtspClient);
   } catch (...) {
-    TRACE_ERROR(rtspClient->mediaClient->m_EngineID,
-                "Exception thrown during keep alive");
+    TRACE_ERROR(rtspClient->mediaClient->m_EngineID, "Exception thrown during keep alive");
   }
 }
 
